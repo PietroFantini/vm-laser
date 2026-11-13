@@ -1,0 +1,318 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VM Laser</title><style>
+:root{--bg:#f2f2f0;--fg:#1d1d1f;--mut:#6e6e73;--card:#fff;--line:#e3e3df;--grid:#e6e6e2;--grid2:#d4d4cf;
+--acc:#2f6fdf;--go:#1f8a4c;--warn:#d98a00;--stop:#d23a2a;--r:14px}
+@media (prefers-color-scheme:dark){:root{--bg:#111113;--fg:#f5f5f7;--mut:#98989d;--card:#1c1c1e;--line:#2c2c2e;--grid:#232325;--grid2:#2f2f32}}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font:15px system-ui;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+display:grid;grid-template-rows:auto 1fr;gap:10px;padding:10px}
+button{font:600 15px system-ui;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;touch-action:none}
+button:active{transform:scale(.97)}button:disabled{opacity:.4}
+.on{background:var(--acc)!important;color:#fff!important;border-color:var(--acc)!important}
+
+/* barra in alto */
+.top{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px 8px 12px}
+.brand{display:flex;align-items:center;gap:10px;font:700 17px system-ui}
+.brand svg{width:30px;height:30px}
+.mach{color:var(--mut);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mut);margin-right:6px;vertical-align:1px}
+.dot.ok{background:var(--go)}
+.coords{display:flex;gap:18px;margin-left:auto;font:600 16px ui-monospace,monospace}
+.coords span b{color:var(--mut);font-weight:500;margin-right:4px}
+#msg{color:var(--stop);font-size:13px;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gear{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:11px}
+.gear svg{width:22px;height:22px}
+.warnb{color:#a67c00;background:#fff3b0!important;border-color:#e0b800!important}.warnb svg{fill:#ffd60a;stroke:#7a5c00}
+/* avvertenza (scarico di responsabilità) */
+.disc{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:10;padding:16px}
+.disc[hidden]{display:none}
+.disc .box{width:min(560px,100%);max-height:100%;overflow:auto;background:var(--card);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.disc h2{font-size:19px;display:flex;align-items:center;gap:10px}.disc h2 svg{width:28px;height:28px;fill:#ffd60a;stroke:#7a5c00;flex:none}
+.disc p{font-size:15px;line-height:1.5}
+.disc button{padding:14px;font-size:16px;margin-top:4px}
+.disc label{display:flex;align-items:center;gap:12px;font-size:15px;padding:6px 0;cursor:pointer}.disc label input{width:24px;height:24px;accent-color:var(--acc);flex:none}
+
+/* corpo: piano a sinistra, comandi a destra */
+.main{display:grid;grid-template-columns:1fr 340px;gap:10px;min-height:0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:0}
+.bedwrap{display:grid;grid-template-rows:auto 1fr auto;gap:8px}
+.bedhead,.bedfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+.bedhead button,.bedfoot button{padding:6px 12px;font-size:13px}
+#bed{width:100%;height:100%;display:block;background:var(--bg);border-radius:10px;touch-action:none;min-height:0}
+.side{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto}
+.h{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;justify-content:space-between}
+.job{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.job button{padding:14px 0;font-size:14px;color:#fff;border:0}
+#jstart{background:var(--go)}#jstart.na{background:var(--mut)}
+.home{font:700 13px system-ui!important;letter-spacing:.04em;background:var(--fg);color:var(--card);border-color:var(--fg)}
+.st{font-weight:700}.st.running{color:var(--go)}.st.paused{color:var(--warn)}#jpause{background:var(--warn)}#jstop{background:var(--stop)}
+.jogs{display:grid;grid-template-columns:1fr 64px;gap:8px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,58px);gap:6px}
+.pad button,.zpad button{font-size:24px}
+.zpad{display:grid;grid-template-rows:1fr 1fr;gap:6px}
+.sl{display:grid;grid-template-columns:62px 1fr 74px;align-items:center;gap:8px;font-size:13px}
+.sl b{text-align:right;font:600 13px ui-monospace,monospace}
+input[type=range]{width:100%;accent-color:var(--acc);height:28px}
+.seg{display:flex;gap:6px}.seg button{flex:1;padding:9px 0;font-size:13px}
+#eff{color:var(--acc);font-size:12px;min-height:1em;margin-top:2px}
+.off{opacity:.35;pointer-events:none}
+
+/* impostazioni (rotella) */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;justify-content:flex-end;z-index:5}
+.sheet[hidden]{display:none}
+.sheet .box{width:min(460px,92vw);height:100%;background:var(--card);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px;box-shadow:-8px 0 30px rgba(0,0,0,.15)}
+.sheet h2{font-size:18px;display:flex;justify-content:space-between;align-items:center}
+.sheet h2 button{padding:6px 12px;font-size:14px}
+.mlist{display:grid;gap:8px}
+.m{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px}
+.m.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.m .t{flex:1;min-width:0}.m .t b{display:block}.m .t span{font:12px ui-monospace,monospace;color:var(--mut)}
+.m button{padding:8px 10px;font-size:13px}
+.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+.row{display:flex;gap:8px}.row button{padding:12px 16px}
+input[type=text]{font:16px system-ui;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);flex:1;min-width:0}
+.note{font-size:12px;color:var(--mut);line-height:1.45}
+
+@media (orientation:portrait){.main{grid-template-columns:1fr;grid-template-rows:minmax(260px,1fr) auto}.side{overflow:visible}.coords{gap:10px;font-size:14px}}
+</style></head><body>
+
+<header class="top">
+<div class="brand"><svg viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#fff" stroke="rgba(0,0,0,.12)" stroke-width=".8"/>
+<path d="M9.5 14 L17 34 L24.5 14 L30.5 27.5 L36.5 14 L38.5 34" fill="none" stroke="#1D1D1F" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/></svg>VM Laser</div>
+<div class="mach"><span class="dot" id="mdot"></span><span id="mname">Nessuna macchina</span></div>
+<div id="msg"></div>
+<div class="coords"><span><b>X</b><i id="px">—</i></span><span><b>Y</b><i id="py">—</i></span><span><b>Z</b><i id="pz">—</i></span></div>
+<button class="gear warnb" id="warnbtn" aria-label="Avvertenza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></button>
+<button class="gear" id="gear" aria-label="Impostazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</header>
+
+<div class="main" id="controls">
+<section class="panel bedwrap">
+<div class="bedhead"><span id="bedlbl">Piano di lavoro</span><button id="mirror">Inverti X</button></div>
+<svg id="bed" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid meet">
+<g id="world">
+<g id="fine" stroke="var(--grid)" stroke-width=".6" opacity="0"></g>
+<g id="grid" stroke="var(--grid2)" stroke-width="1"></g>
+<rect id="frame" x="0" y="0" width="1600" height="1000" fill="none" stroke="var(--fg)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+<polyline id="trail" fill="none" stroke="var(--go)" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+<line id="hx" stroke="var(--acc)" stroke-width="1.2" opacity=".45" vector-effect="non-scaling-stroke"/>
+<line id="hy" stroke="var(--acc)" stroke-width="1.2" opacity=".45" vector-effect="non-scaling-stroke"/>
+<circle id="ghost" r="16" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-dasharray="6 4" vector-effect="non-scaling-stroke" visibility="hidden"/>
+<circle id="head" r="18" fill="var(--stop)" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+<circle id="grab" r="40" fill="transparent"/></g></svg>
+<div class="bedfoot"><span id="gtxt">Trascina il punto rosso · due dita per zoom e spostamento</span><span id="zlbl">1×</span><button id="zreset">Vista intera</button></div>
+</section>
+
+<aside class="side">
+<div class="panel"><div class="h"><span>Lavoro</span><span id="jstate" class="st"></span></div>
+<div class="job"><button id="jstart">INIZIO</button><button id="jpause">PAUSA</button><button id="jstop">STOP</button></div></div>
+
+<div class="panel"><div class="h"><span>Movimento</span><span>laser spento</span></div>
+<div class="jogs">
+<div class="pad">
+<span></span><button data-a="y" data-d="-1">↑</button><span></span>
+<button data-a="x" data-d="L">←</button><button id="home" class="home">HOME</button><button data-a="x" data-d="R">→</button>
+<span></span><button data-a="y" data-d="1">↓</button><span></span></div>
+<div class="zpad"><button data-a="z" data-d="1">Z▲</button><button data-a="z" data-d="-1">Z▼</button></div>
+</div>
+<div class="seg" id="mode" style="margin-top:10px">
+<button data-v="0" class="on">Continuo</button><button data-v="100">0,1</button><button data-v="1000">1 mm</button><button data-v="10000">10 mm</button></div></div>
+
+<div class="panel"><div class="h"><span>Velocità</span></div>
+<div class="sl"><span>X / Y</span><input type="range" id="sp" min="1" max="300" value="50"><b id="spv">50 mm/s</b></div>
+<div class="sl"><span>Z</span><input type="range" id="zs" min="1" max="20" value="5"><b id="zsv">5 mm/s</b></div>
+<div id="eff"></div></div>
+</aside>
+</div>
+
+<div class="disc" id="disc" hidden><div class="box">
+<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Avvertenza</h2>
+<p>Ci è stato comunicato che la macchina laser ha un problema noto ai tasti <b>HOME</b> e <b>INIZIO</b>: quando la testa torna in posizione con HOME a volte la macchina vibra, e INIZIO non sempre funziona correttamente. Il problema era già presente.</p>
+<p><b>Decliniamo ogni responsabilità</b> per guasti, malfunzionamenti, lavorazioni difettose, danneggiamento della macchina stessa e danni a persone o cose derivanti dall'uso della macchina, che resta sotto la responsabilità esclusiva di chi la utilizza.</p>
+<label><input type="checkbox" id="discskip">Non mostrare per 30 giorni</label>
+<button class="primary" id="discok">OK, ho capito</button></div></div>
+<div class="sheet" id="fsheet" hidden><div class="box">
+<h2>Avvia un file dalla memoria <button id="fclose">Chiudi</button></h2>
+<p class="note">In cima l'ultimo lavoro inviato alla macchina, sotto i file salvati in memoria.</p>
+<div class="mlist" id="flist"></div></div></div>
+<div class="sheet" id="sheet" hidden><div class="box">
+<h2>Impostazioni <button id="close">Chiudi</button></h2>
+<div class="h"><span>Tasto INIZIO</span></div>
+<div class="seg" id="smode"><button data-v="last">Ultimo lavoro inviato</button><button data-v="list">Scegli dalla lista</button></div>
+<div class="h" style="margin-top:6px"><span>Macchine salvate</span><span id="smsg"></span></div>
+<div class="mlist" id="mlist"></div>
+<button class="primary" id="scan" style="padding:13px">Cerca in rete</button>
+<div class="mlist" id="found"></div>
+<div class="h" style="margin:6px 0 0"><span>Aggiungi per indirizzo IP</span></div>
+<div class="row"><input type="text" id="ipin" placeholder="es. 192.168.1.102" inputmode="decimal"><button id="probe">Aggiungi</button></div>
+<p class="note">La ricerca interroga tutti gli indirizzi della rete Wi-Fi a cui è collegato il tablet e riconosce i controller Ruida. Di ogni macchina vengono salvati nome, indirizzo e dimensioni del piano.</p>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const msg=$('msg');let held=null,beat=null,mode=0;
+const view={z:1,x:0,y:0};let W=0,H=0,machineIp=null;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let mirror=store.get('mirror','1')==='1';
+const sp=$('sp'),zs=$('zs');sp.value=store.get('sp',50);zs.value=store.get('zs',5);
+
+// Ponte verso l'app (sincrono). Ogni comando è un "/api/..." come nella versione per Mac.
+function api(u,body){try{return JSON.parse(VM.call(u,JSON.stringify(body||{})))}catch(e){return{error:String(e)}}}
+function call(u,body){const j=api(u,body);if(j.error)msg.textContent=j.error;else if(u!=='/api/beat')msg.textContent='';return j}
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+// velocità effettiva: X/Y divisa per lo zoom della mappa, Z invariata
+const speed=a=>a==='z'?+zs.value:Math.max(0.5,Math.round(+sp.value/view.z*10)/10);
+function showSp(){$('spv').textContent=sp.value+' mm/s';$('zsv').textContent=zs.value+' mm/s';
+$('eff').textContent=view.z>1?`Con lo zoom ${view.z.toFixed(1)}×: ${speed('x')} mm/s`:'';store.set('sp',sp.value);store.set('zs',zs.value)}
+sp.oninput=zs.oninput=showSp;
+
+document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{mode=+b.dataset.v;
+document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b))});
+
+// direzione X sullo schermo: con "Inverti X" la freccia sinistra aumenta X
+const xSign=d=>(d==='L')===mirror?1:-1;
+const sgn=(a,d)=>a==='x'?xSign(d):+d;
+function down(a,d){const s=sgn(a,d),k=a+d;if(held===k)return;up();
+if(mode){call('/api/step',{axis:a,sign:s,step:mode,speed:speed(a)});return}
+held=k;document.querySelector(`[data-a="${a}"][data-d="${d}"]`).classList.add('on');
+call('/api/press',{axis:a,sign:s,speed:speed(a)});beat=setInterval(()=>call('/api/beat'),100)}
+function up(){if(!held)return;clearInterval(beat);held=null;
+document.querySelectorAll('.pad button,.zpad button').forEach(b=>b.classList.remove('on'));call('/api/release')}
+document.querySelectorAll('.pad button[data-a],.zpad button').forEach(b=>{
+b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);down(b.dataset.a,b.dataset.d)});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,up))});
+const keys={ArrowUp:['y','-1'],ArrowDown:['y','1'],ArrowLeft:['x','L'],ArrowRight:['x','R'],PageUp:['z','1'],PageDown:['z','-1']};
+addEventListener('keydown',e=>{const k=keys[e.key];if(k&&e.target.tagName!=='INPUT'){e.preventDefault();if(!e.repeat)down(...k)}});
+addEventListener('keyup',e=>{const k=keys[e.key];if(k&&held===k[0]+k[1])up()});
+addEventListener('blur',()=>{up();dragEnd()});document.addEventListener('visibilitychange',()=>{up();dragEnd()});
+
+// --- lavoro: INIZIO / PAUSA-CONTINUA / STOP ---
+let job='unknown';
+const JOB={idle:'A riposo',running:'In lavoro',paused:'In pausa',unknown:''};
+function startFile(f){$('fsheet').hidden=true;call('/api/start_file',{n:f.n})}
+function readFiles(){if(job==='running'||job==='paused'){msg.textContent='C\'è già un lavoro in corso';return null}
+const r=call('/api/files');return r.error?null:r.files}
+// modalità di INIZIO scelta nelle impostazioni: ultimo file usato oppure elenco
+let startMode=store.get('startMode','last');
+function showStartMode(){document.querySelectorAll('#smode button').forEach(b=>b.classList.toggle('on',b.dataset.v===startMode))}
+document.querySelectorAll('#smode button').forEach(b=>b.onclick=()=>{startMode=b.dataset.v;store.set('startMode',startMode);showStartMode()});
+showStartMode();
+$('jstart').onclick=()=>{if(startMode==='last'){if(job==='running'||job==='paused'){msg.textContent='C\'è già un lavoro in corso';return}
+startFile({n:0,name:'Ultimo lavoro inviato'});return}
+const fs=readFiles();if(fs)showFiles(fs)};
+function showFiles(fs){const l=$('flist');l.innerHTML='';
+if(!fs.length)l.innerHTML='<p class="note">Nessun file nella memoria della macchina.</p>';
+for(const f of fs){const d=document.createElement('div');d.className='m'+(f.last?' sel':'');
+d.innerHTML=`<div class="t"><b>${esc(f.name)}</b><span>${f.n?'file '+f.n+' in memoria':'il lavoro mandato per ultimo'}</span></div><button class="primary">Avvia</button>`;
+d.querySelector('button').onclick=()=>startFile(f);l.appendChild(d)}
+$('fsheet').hidden=false};
+$('jpause').onclick=()=>call('/api/job',{action:job==='paused'?'resume':'pause'});
+$('jstop').onclick=()=>call('/api/job',{action:'stop'});
+// percorso della testa durante il lavoro: si azzera quando ne parte uno nuovo
+let trail=[];
+function addTrail(x,y){if(job!=='running')return;const l=trail[trail.length-1];
+if(l&&Math.hypot(l[0]-x,l[1]-y)<0.5)return;trail.push([x,y]);if(trail.length>8000)trail=trail.filter((_,i)=>i%2==0);
+$('trail').setAttribute('points',trail.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '))}
+function showJob(s){if(s===job)return;if(s==='running'&&job!=='paused'){trail=[];$('trail').setAttribute('points','')}job=s;const el=$('jstate');el.textContent=JOB[s]||'';el.className='st '+s;
+$('jpause').textContent=s==='paused'?'CONTINUA':'PAUSA';$('jpause').disabled=s==='idle';$('jstop').disabled=s==='idle'}
+$('home').onclick=()=>{if(job==='running'){msg.textContent='La macchina sta lavorando';return}
+call('/api/home',{speed:speed('x')})};
+
+// --- piano di lavoro ---
+const bed=$('bed'),head=$('head'),grab=$('grab'),ghost=$('ghost');
+function buildGrid(){let g='',f='';const ns=' vector-effect="non-scaling-stroke"';
+for(let x=100;x<W;x+=100)g+=`<line x1="${x}" y1="0" x2="${x}" y2="${H}"${ns}/>`;
+for(let y=100;y<H;y+=100)g+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}"${ns}/>`;
+for(let x=10;x<W;x+=10)if(x%100)f+=`<line x1="${x}" y1="0" x2="${x}" y2="${H}"${ns}/>`;
+for(let y=10;y<H;y+=10)if(y%100)f+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}"${ns}/>`;
+$('grid').innerHTML=g;$('fine').innerHTML=f;
+const fr=$('frame');fr.setAttribute('width',W);fr.setAttribute('height',H);
+$('hx').setAttribute('y2',H);$('hy').setAttribute('x2',W);$('bedlbl').textContent=`Piano di lavoro · ${W} × ${H} mm`;applyMirror()}
+function applyMirror(){$('world').setAttribute('transform',mirror?`translate(${W},0) scale(-1,1)`:'');$('mirror').classList.toggle('on',mirror)}
+$('mirror').onclick=()=>{mirror=!mirror;store.set('mirror',mirror?'1':'0');applyMirror()};
+function toSvg(c){const p=bed.createSVGPoint();p.x=c.clientX;p.y=c.clientY;return p.matrixTransform(bed.getScreenCTM().inverse())}
+function applyView(){if(!W)return;
+// la vista segue le proporzioni dell'area disponibile, così il piano la riempie
+const ar=bed.clientWidth/Math.max(1,bed.clientHeight),base=Math.max(W/ar,H);
+const h=base/view.z,w=h*ar;view.x=w>=W?(W-w)/2:clamp(view.x,0,W-w);view.y=h>=H?(H-h)/2:clamp(view.y,0,H-h);
+bed.setAttribute('viewBox',`${view.x} ${view.y} ${w} ${h}`);
+const px=h/bed.clientHeight;head.setAttribute('r',9*px);ghost.setAttribute('r',8*px);grab.setAttribute('r',30*px);
+$('fine').setAttribute('opacity',view.z>=4?1:0);$('zlbl').textContent=`${view.z.toFixed(1)}×`;showSp()}
+addEventListener('resize',applyView);
+function zoomAt(p,nz){nz=clamp(nz,1,80);view.x=p.x-(p.x-view.x)*view.z/nz;view.y=p.y-(p.y-view.y)*view.z/nz;view.z=nz;applyView()}
+bed.addEventListener('wheel',e=>{e.preventDefault();if(!W)return;
+if(e.ctrlKey)zoomAt(toSvg(e),view.z*Math.exp(-e.deltaY*0.01));
+else{const k=bed.viewBox.baseVal.height/bed.clientHeight;view.x+=e.deltaX*k;view.y+=e.deltaY*k;applyView()}},{passive:false});
+$('zreset').onclick=()=>{view.z=1;applyView()};
+
+let goal=null,dragBeat=null,lastSent=0,pan=null,pinch=null;const ptrs=new Map();
+function pick(c){const q=toSvg(c);const x=mirror?W-q.x:q.x;goal={x:clamp(x,0,W),y:clamp(q.y,0,H)};
+ghost.setAttribute('cx',goal.x);ghost.setAttribute('cy',goal.y);ghost.setAttribute('visibility','visible');
+$('gtxt').textContent=`Segue → X ${goal.x.toFixed(1)}  Y ${goal.y.toFixed(1)}`}
+function sendGoal(force){const t=Date.now();if(!force&&t-lastSent<50)return;lastSent=t;
+call('/api/follow',{x:Math.round(goal.x*1000),y:Math.round(goal.y*1000),speed:speed('x')})}
+function dragEnd(){if(!dragBeat)return;clearInterval(dragBeat);dragBeat=null;sendGoal(true);call('/api/follow_end');
+$('gtxt').textContent=`Arrivo a X ${goal.x.toFixed(1)}  Y ${goal.y.toFixed(1)}`;setTimeout(()=>ghost.setAttribute('visibility','hidden'),3000)}
+const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+const mid=(a,b)=>({clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2});
+const unit=()=>bed.viewBox.baseVal.height/bed.clientHeight;
+bed.addEventListener('pointerdown',e=>{e.preventDefault();bed.setPointerCapture(e.pointerId);
+ptrs.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+if(ptrs.size===2){dragEnd();pan=null;const[a,b]=[...ptrs.values()];pinch={d:dist(a,b),z:view.z,m:toSvg(mid(a,b)),c:mid(a,b)};return}
+if(ptrs.size>2)return;
+if(e.target===grab){up();pick(e);sendGoal(true);dragBeat=setInterval(()=>call('/api/beat'),100);return}
+pan={sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y}});
+bed.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+if(pinch&&ptrs.size===2){const[a,b]=[...ptrs.values()];zoomAt(pinch.m,pinch.z*dist(a,b)/pinch.d);
+const m=mid(a,b),k=unit();view.x-=(m.clientX-pinch.c.clientX)*k;view.y-=(m.clientY-pinch.c.clientY)*k;pinch.c=m;applyView();return}
+if(dragBeat){pick(e);sendGoal(false);return}
+if(pan){const k=unit();view.x=pan.vx-(e.clientX-pan.sx)*k;view.y=pan.vy-(e.clientY-pan.sy)*k;applyView()}});
+['pointerup','pointercancel'].forEach(ev=>bed.addEventListener(ev,e=>{ptrs.delete(e.pointerId);
+if(ptrs.size<2)pinch=null;if(!ptrs.size){pan=null;dragEnd()}}));
+
+function poll(){const j=api('/api/pos');
+if(!j.error){const m=j.machine;$('controls').classList.toggle('off',!m);$('mname').textContent=m?`${m.name} · ${m.ip}`:'Nessuna macchina';
+$('mdot').classList.toggle('ok',!!m&&j.x!=null);showJob(j.job||'unknown');
+if(m&&(m.ip!==machineIp||!W)){machineIp=m.ip;W=m.w/1000;H=m.h/1000;view.z=1;buildGrid();applyView()}
+if(j.x!=null){$('px').textContent=(j.x/1000).toFixed(1);$('py').textContent=(j.y/1000).toFixed(1);$('pz').textContent=(j.z/1000).toFixed(1);
+const cx=j.x/1000,cy=j.y/1000;for(const el of[head,grab]){el.setAttribute('cx',cx);el.setAttribute('cy',cy)}
+$('hx').setAttribute('x1',cx);$('hx').setAttribute('x2',cx);$('hy').setAttribute('y1',cy);$('hy').setAttribute('y2',cy);addTrail(cx,cy)}}
+setTimeout(poll,job==='running'?100:200)}
+
+// --- impostazioni: macchine ---
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const size=m=>`${m.w/1000}×${m.h/1000} mm`;
+function renderMachines(j){if(j.error)return;const l=$('mlist');
+l.innerHTML=j.list.length?'':'<p class="note">Nessuna macchina salvata: usa "Cerca in rete".</p>';
+for(const m of j.list){const d=document.createElement('div');d.className='m'+(m.ip===j.selected?' sel':'');
+d.innerHTML=`<div class="t"><b>${esc(m.name)}</b><span>${esc(m.ip)} · ${size(m)}</span></div>
+<button data-k="use">${m.ip===j.selected?'In uso':'Usa'}</button><button data-k="ren">Rinomina</button><button data-k="del">✕</button>`;
+d.querySelector('[data-k=use]').onclick=()=>renderMachines(call('/api/select',{ip:m.ip}));
+d.querySelector('[data-k=ren]').onclick=()=>{const n=prompt('Nome della macchina',m.name);if(n&&n.trim())renderMachines(call('/api/save',{machine:{...m,name:n.trim()}}))};
+d.querySelector('[data-k=del]').onclick=()=>renderMachines(call('/api/delete',{ip:m.ip}));
+l.appendChild(d)}}
+function renderFound(list){const f=$('found');f.innerHTML='';const saved=api('/api/machines');
+for(const m of list){const known=!saved.error&&saved.list.some(s=>s.ip===m.ip);const d=document.createElement('div');d.className='m';
+d.innerHTML=`<div class="t"><b>${esc(m.name)}</b><span>${esc(m.ip)} · ${size(m)}</span></div><button class="primary">${known?'Già salvata':'Salva e usa'}</button>`;
+d.querySelector('button').onclick=()=>{call('/api/save',{machine:m});renderMachines(call('/api/select',{ip:m.ip}));f.innerHTML=''};
+f.appendChild(d)}}
+function openSheet(){up();dragEnd();$('sheet').hidden=false;renderMachines(api('/api/machines'))}
+$('gear').onclick=openSheet;$('fclose').onclick=()=>$('fsheet').hidden=true;
+$('fsheet').onclick=e=>{if(e.target===$('fsheet'))$('fsheet').hidden=true};$('close').onclick=()=>$('sheet').hidden=true;
+$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').hidden=true};
+$('scan').onclick=()=>{const r=call('/api/scan');if(r.error)return;$('scan').disabled=true;
+const t=setInterval(()=>{const s=api('/api/scan_status');$('smsg').textContent=s.msg||'';
+if(!s.running){clearInterval(t);$('scan').disabled=false;renderFound(s.found||[])}},300)};
+$('probe').onclick=()=>{const ip=$('ipin').value.trim();if(!ip)return;$('smsg').textContent='Verifico '+ip+'…';
+setTimeout(()=>{const r=call('/api/probe',{ip});$('smsg').textContent=r.machine?'Trovata':'';if(r.machine)renderFound([r.machine])},30)};
+
+$('warnbtn').onclick=()=>$('disc').hidden=false;$('discok').onclick=()=>{if($('discskip').checked){try{localStorage.setItem('discUntil',String(Date.now()+30*864e5))}catch(e){}}$('disc').hidden=true};
+showSp();poll();
+let _du=0;try{_du=+localStorage.getItem('discUntil')||0}catch(e){}
+if(Date.now()>_du)$('disc').hidden=false;
+if(!api('/api/machines').selected)openSheet();
+</script></body></html>
